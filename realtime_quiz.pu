@@ -1,0 +1,227 @@
+@startuml
+
+title Realtime Quiz
+hide footbox
+
+actor Manager
+actor Participant1
+actor Participant2
+
+group Create Room
+
+    note over Manager, Server : 運営は、事前に部屋を作成することができる。
+
+    Manager ->> Server : Create Room Request
+    activate Server
+    return Create Room Response
+
+end
+
+|||
+
+group Get Rooms
+
+    note over Manager, Server : 参加者は、現在公開されてる部屋の一覧を取得することができる。
+
+    Participant1 ->> Server : Get Rooms Request
+    activate Server
+    return Get Rooms Response
+
+end
+
+|||
+
+group Participate Room
+
+    note over Manager, Server
+    参加者は、部屋を選択して名前を入力することで部屋に入ることができる。
+    サーバは、参加者が部屋に出入りしたら、部屋にいる全参加者と運営に対して、参加者の出入りを通知する。
+    end note
+
+    == Participate Participant1 ==
+    Participant1 ->> Server : Participate Room Request
+    activate Server
+    Server -> Server : Broadcast Update Participants
+    activate Server
+    Server ->> Manager : Participants Notification
+    deactivate Server
+    return Join Room Response
+
+    == Participate Participant2 ==
+    Participant2 ->> Server : Participate Room Request
+    activate Server
+    Server -> Server : Broadcast Update Participants
+    activate Server
+    Server ->> Manager : Participants Notification
+    Server ->> Participant1 : Participants Notification
+    deactivate Server
+    return Join Room Response
+
+end
+
+|||
+
+group Question
+
+    note over Manager, Server
+    運営は、問題文を記入して出題ボタンを押すと出題することができる。
+    サーバは、問題が出題されたら、部屋にいる全参加者に対して、問題内容を通知する。
+    end note
+
+    Manager ->> Server : Question Request
+    activate Server
+    Server -> Server : Broadcast Question
+    activate Server
+    Server ->> Participant1 : Question
+    Server ->> Participant2 : Question
+    deactivate Server
+    return Question Response
+
+end
+
+|||
+
+group Answer Question
+
+    note over Manager, Server
+    参加者は、問題が出題されたら問題に回答することができる。
+    サーバは、回答を済ませた参加者に対して、全参加者が回答中か回答済みかを通知する。
+    サーバは、運営に対して、参加者の回答内容を通知する。
+    end note
+
+    == Answer Participant1 ==
+    Participant1 ->> Server : Answer Request
+    activate Server
+    Server -> Server : Answer Detail Notification
+    activate Server
+    Server ->> Manager : Answer Detail
+    deactivate Server
+    return Answer Response
+
+    == Answer Participant2 ==
+    Participant2 ->> Server : Answer Request
+    activate Server
+    Server -> Server : Answer Detail Notification
+    activate Server
+    Server ->> Manager : Answer Detail
+    deactivate Server
+
+    opt Answered Participant Num >= 1
+        Server -> Server : Broadcast Answer State
+        activate Server
+        Server ->> Participant1 : Answer State
+        deactivate Server
+    end
+
+    return Answer Response
+
+end
+
+|||
+
+group Deadline Answer
+
+    note over Manager, Server
+    運営は、任意のタイミングで回答を締め切ることができる。
+    サーバは、回答を締め切られたら、部屋にいる全参加者に対して、回答締め切りを通知する。
+    end note
+
+    Manager ->> Server : Deadline Request
+    activate Server
+    Server -> Server : Broadcast Deadline Notification
+    activate Server
+    Server ->> Participant1 : Deadline Notification
+    Server ->> Participant2 : Deadline Notification
+    deactivate Server
+    return Deadline Response
+
+end
+
+|||
+
+group Scoring
+
+    note over Manager, Server
+    運営は、締め切り前に回答を提出した参加者に対して採点することができる。
+    運営は、全ての採点を完了したら採点結果を公開することができる。
+    サーバは、採点結果が公開されたら、部屋にいる全参加者に対して、全参加者の回答内容と採点結果を通知する。
+    end note
+
+    Manager ->> Server : Scoring Request
+    activate Server
+    Server -> Server : Broadcast Result
+    activate Server
+    Server ->> Participant1 : Result
+    Server ->> Participant2 : Result
+    deactivate Server
+    return Scoring Response
+
+end
+
+|||
+
+group Leave Room
+
+    note over Manager, Server
+    参加者は、部屋を出るボタンを押すことで部屋から出ることができる。
+    サーバは、参加者との通信が切断された場合、その参加者が部屋から出たと見做す。
+    サーバは、参加者が部屋に出入りしたら、部屋にいる全参加者と運営に対して、参加者の出入りを通知する。
+    end note
+
+    opt Leave by request
+        Participant1 ->> Server : Leave Room Request
+        activate Server
+        Server -> Server : Broadcast Update Participants
+        activate Server
+        Server ->> Manager : Participants Notification
+        deactivate Server
+        return Exit Room Response
+    end
+
+    opt Leave by disconnection
+        Participant1 -x Server : Detect Disconnetion
+        activate Server
+        Server -> Server : Broadcast Update Participants
+        activate Server
+        Server ->> Manager : Participants Notification
+        deactivate Server
+        deactivate Server
+    end
+
+end
+
+|||
+
+group Close Room
+
+    note over Manager, Server
+    運営は、出題前もしくは採点結果公開後に部屋を閉じることができる。
+    サーバは、運営との通信が切断された場合、運営が部屋を閉じたと見做す。
+    サーバは、部屋が閉じられたら、部屋にいる全参加者に対して、閉じられたことを通知する。
+    end note
+
+    opt Close by request
+        Manager ->> Server : Close Room Request
+        activate Server
+        Server -> Server : Broadcast Closing Notification
+        activate Server
+        Server ->> Participant1 : Closing Notification
+        Server ->> Participant2 : Closing Notification
+        deactivate Server
+        return Close Room Response
+    end
+
+    opt Close by disconnection
+        Manager -x Server : Detect Disconnection
+        activate Server
+        Server -> Server : Broadcast Closing Notification
+        activate Server
+        Server ->> Participant1 : Closing Notification
+        Server ->> Participant2 : Closing Notification
+        deactivate Server
+        deactivate Server
+    end
+
+end
+
+@enduml

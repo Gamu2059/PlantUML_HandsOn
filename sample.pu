@@ -1,0 +1,150 @@
+@startuml
+
+hide footbox
+
+actor Streamer
+actor Audience1
+actor Audience2
+
+group Start Streaming
+
+    note over Streamer, Server : 配信者は、配信ボタンを押すとストリーミング配信を始めることができる
+
+    Streamer ->> Server : Start Streaming Request
+    activate Server
+    return Start Streaming Response
+
+end
+
+|||
+
+group Get Streamers
+
+    note over Streamer, Server : 視聴者は、現在配信している全ての配信者の一覧を取得することができる
+
+    Audience1 ->> Server : Get Streamer Request
+    activate Server
+    return Get Streamer Response
+
+end
+
+|||
+
+group Join Streaming
+
+    note over Streamer, Server : 視聴者は、視聴したい配信者を選択して配信を視聴することができる
+
+    Audience1 ->> Server : Join Streaming Request
+    activate Server
+    return Join Streaming Response
+
+    Audience2 ->> Server : Join Streaming Request
+    activate Server
+    return Join Streaming Response
+
+end
+
+|||
+
+group Streaming
+
+    note over Streamer, Server
+    ストリーミング配信
+    サーバは、配信者から配信データを受信したら、
+    全視聴者に配信データをリレーする
+    end note
+
+    loop Until Stop Streaming
+        Streamer ->> Server : Send Streaming Data
+        activate Server
+        Server -> Server : Broadcast Streaming Data
+        activate Server
+        Audience1 <<- Server : Streaming Data
+        Audience2 <<- Server : Streaming Data
+        deactivate Server
+        deactivate Server
+    end
+end
+
+|||
+
+group Comment
+
+    note over Streamer, Server
+    視聴者は、配信を視聴している時にチャット欄でコメントすることができる
+    サーバは、配信者や配信を視聴している全ての視聴者にコメントを送信する
+    end note
+
+    Audience1 ->> Server : Send Comment Request
+    activate Server
+    Server -> Server : Broadcast Comment
+    activate Server
+    Streamer <<- Server : Comment
+    Audience1 <<- Server : Comment
+    Audience2 <<- Server : Comment
+    deactivate Server
+    deactivate Server
+
+end
+
+|||
+
+group Leave Streaming
+
+    note over Streamer, Server
+    視著者は、視聴停止ボタンを押すことで配信から抜け出すことができる
+    サーバは、視聴者との接続が切断された場合は視聴者が配信から抜け出したと見做す
+    end note
+
+    opt Leave by request
+        Audience1 ->> Server : Leave Streaming Request
+        activate Server
+        return Leave Streaming Response
+    end
+
+    opt Leave by disconnection
+        Audience1 -x Server : Detect Disconnection
+        activate Server
+        Server -> Server : Leave Process
+        activate Server
+        deactivate Server
+        deactivate Server
+    end
+
+end
+
+|||
+
+group Stop Streaming
+
+    note over Streamer, Server
+    配信者は、任意のタイミングで配信を停止することができる
+    サーバは、配信の停止を確認したら配信を視聴している全ての視聴者に配信が終了したことを通知する
+    サーバは、配信者との接続が切断された場合は配信者が配信を停止したと見做す
+    end note
+
+    opt Stop by request
+        Streamer ->> Server : Stop Streaming Request
+        activate Server
+        Server -> Server : Broadcast Stop Notification
+        activate Server
+        Audience1 <<- Server : Stop Streaming
+        Audience2 <<- Server : Stop Streaming
+        deactivate Server
+        return Stop Streaming Response
+    end
+
+    opt Stop by disconnection
+        Streamer -x Server : Detect Disconnection
+        activate Server
+        Server -> Server : Broadcast Stop Notification
+        activate Server
+        Audience1 <<- Server : Stop Streaming
+        Audience2 <<- Server : Stop Streaming
+        deactivate Server
+        deactivate Server
+    end
+
+end
+
+@enduml
